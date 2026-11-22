@@ -1,0 +1,1 @@
+Prerequisite: an S3 bucket for Terraform state must exist before the first terraform init. See scripts/deploy-infrastructure.sh for the bootstrap commands.

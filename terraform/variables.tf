@@ -1,6 +1,7 @@
 variable "aws_region" {
-  type    = string
-  default = "eu-west-1"
+  description = "AWS region for infrastructure"
+  type        = string
+  default     = "eu-west-1"
 }
 
 variable "cluster_name" {
@@ -26,4 +27,13 @@ variable "public_subnet_cidrs" {
 variable "private_subnet_cidrs" {
   type    = list(string)
   default = ["10.0.11.0/24", "10.0.12.0/24"]
+}
+variable "kubernetes_version" {
+  type    = string
+  default = "1.34"
+}
+
+variable "github_actions_role_arn" {
+  type    = string
+  default = ""
 }
