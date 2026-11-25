@@ -38,3 +38,9 @@ variable "github_actions_role_arn" {
   type    = string
   default = ""
 }
+
+variable "alb_dns_name" {
+  description = "DNS name of the ALB created by the Kubernetes Ingress. Leave empty on first apply."
+  type        = string
+  default     = ""
+}

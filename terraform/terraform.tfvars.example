@@ -1,0 +1,2 @@
+# Set after the Ingress creates the ALB (see README), then re-apply
+alb_dns_name = ""

@@ -75,3 +75,15 @@ module "database" {
   private_subnet_ids         = module.networking.private_subnet_ids
   eks_node_security_group_id = module.eks.cluster_security_group_id
 }
+
+module "cdn" {
+  source = "./modules/cdn"
+
+  bucket_id                   = module.storage.bucket_id
+  bucket_arn                  = module.storage.bucket_arn
+  bucket_regional_domain_name = module.storage.bucket_regional_domain_name
+  alb_dns_name                = var.alb_dns_name
+
+  # Ensures the public access block exists before the bucket policy is attached
+  depends_on = [module.storage]
+}
