@@ -11,6 +11,7 @@ resource "aws_internet_gateway" "igw" {
   tags   = { Name = "starttech-igw" }
 }
 
+# 2 public subnet created on the VPC
 resource "aws_subnet" "public" {
   count                   = length(var.public_subnet_cidrs)
   vpc_id                  = aws_vpc.starttech_vpc.id
@@ -25,6 +26,7 @@ resource "aws_subnet" "public" {
   }
 }
 
+# 2 private subnet created on the VPC
 resource "aws_subnet" "private" {
   count             = length(var.private_subnet_cidrs)
   vpc_id            = aws_vpc.starttech_vpc.id
@@ -41,7 +43,9 @@ resource "aws_subnet" "private" {
 # One NAT gateway (cost saving). One per AZ would be more resilient.
 resource "aws_eip" "nat" {
   domain = "vpc"
-  tags   = { Name = "starttech-nat-eip" }
+  tags = {
+    Name = "starttech-nat-eip"
+  }
 }
 
 resource "aws_nat_gateway" "nat" {
@@ -52,6 +56,7 @@ resource "aws_nat_gateway" "nat" {
   depends_on = [aws_internet_gateway.igw]
 }
 
+# route table for public subnet
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.starttech_vpc.id
 
@@ -63,6 +68,7 @@ resource "aws_route_table" "public" {
   tags = { Name = "starttech-public-rt" }
 }
 
+# route table for private subnet
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.starttech_vpc.id
 

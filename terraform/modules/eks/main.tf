@@ -147,7 +147,7 @@ resource "aws_iam_role_policy_attachment" "lb_controller" {
   policy_arn = aws_iam_policy.lb_controller.arn
 }
 
-# ---------- Give GitHub Actions access to the cluster (optional) ----------
+# ---------- Give GitHub Actions access to the cluster ----------
 resource "aws_eks_access_entry" "github" {
   count         = var.github_actions_role_arn == "" ? 0 : 1
   cluster_name  = aws_eks_cluster.starttech_cluster.name

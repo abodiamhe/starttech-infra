@@ -63,3 +63,15 @@ module "eks" {
   public_subnet_ids       = module.networking.public_subnet_ids
   github_actions_role_arn = var.github_actions_role_arn
 }
+
+module "storage" {
+  source = "./modules/storage"
+}
+
+module "database" {
+  source = "./modules/database"
+
+  vpc_id                     = module.networking.vpc_id
+  private_subnet_ids         = module.networking.private_subnet_ids
+  eks_node_security_group_id = module.eks.cluster_security_group_id
+}
