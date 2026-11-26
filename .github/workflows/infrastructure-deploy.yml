@@ -1,40 +1,62 @@
-name: infrastructure-deploy
+name: Infrastructure Deploy
+
 on:
   push:
     branches: [main]
-    paths: ['terraform/**']
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infrastructure-deploy.yml"
+  workflow_dispatch:
 
 permissions:
-  id-token: write
+  id-token: write   # required to request the OIDC token
   contents: read
 
+# Never run two applies at once
+concurrency:
+  group: terraform-apply
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-west-1
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_github_owner: ${{ github.repository_owner }}
+  TF_VAR_alb_dns_name: ${{ vars.ALB_DNS_NAME }}
+
 jobs:
-  deploy:
+  terraform:
+    name: Terraform fmt, validate, apply
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: eu-west-1
+    defaults:
+      run:
+        working-directory: terraform
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: eu-west-1
+          terraform_version: "1.17.0"
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          terraform_wrapper: false   # needed so `terraform output -raw` works in scripts
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy infrastructure and controller
-        run: ./scripts/deploy-infrastructure.sh
-        
-      - run: terraform fmt -check -recursive
-        working-directory: terraform
-      - run: terraform init -input=false
-        working-directory: terraform
-      - run: terraform validate
-        working-directory: terraform
-      - run: terraform apply -auto-approve -input=false
-        working-directory: terraform
-      - name: Install Load Balancer Controller
-        run: ./scripts/install-lb-controller.sh   # or the Phase B part of the script
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -input=false
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve -input=false

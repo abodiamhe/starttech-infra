@@ -1,40 +1,48 @@
 #!/usr/bin/env bash
+# Usage: ./scripts/deploy-infrastructure.sh [--skip-controller]
 set -euo pipefail
 
 REGION="${AWS_REGION:-eu-west-1}"
-LBC_CHART_VERSION="3.6.3"   # pin a version; check the eks-charts releases for the current one
+CLUSTER="starttech-cluster"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TF_DIR="$ROOT_DIR/terraform"
+SKIP_CONTROLLER=false
+[[ "${1:-}" == "--skip-controller" ]] && SKIP_CONTROLLER=true
 
-cd "$(dirname "$0")/../terraform"
+echo "==> Terraform fmt / init / validate"
+terraform -chdir="$TF_DIR" fmt -recursive
+terraform -chdir="$TF_DIR" init -input=false
+terraform -chdir="$TF_DIR" validate
 
-echo "==> Phase A: Terraform"
-terraform init -input=false
-terraform fmt -check -recursive
-terraform validate
-terraform apply -auto-approve -input=false
+echo "==> Terraform plan"
+terraform -chdir="$TF_DIR" plan -input=false
 
-echo "==> Reading outputs"
-CLUSTER=$(terraform output -raw cluster_name)
-VPC_ID=$(terraform output -raw vpc_id)
-ROLE_ARN=$(terraform output -raw lb_controller_role_arn)
+echo "==> Terraform apply"
+terraform -chdir="$TF_DIR" apply -auto-approve -input=false
 
-echo "==> Phase B: connect to cluster"
+if [[ "$SKIP_CONTROLLER" == "true" ]]; then
+  echo "Skipping AWS Load Balancer Controller install."
+  exit 0
+fi
+
+echo "==> Updating kubeconfig"
 aws eks update-kubeconfig --name "$CLUSTER" --region "$REGION"
-kubectl wait --for=condition=Ready nodes --all --timeout=600s
 
-echo "==> Install/upgrade AWS Load Balancer Controller"
-helm repo add eks https://aws.github.io/eks-charts
+VPC_ID=$(terraform -chdir="$TF_DIR" output -raw vpc_id)
+ROLE_ARN=$(terraform -chdir="$TF_DIR" output -raw lb_controller_role_arn)
+
+echo "==> Installing AWS Load Balancer Controller (idempotent)"
+helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1 || true
 helm repo update
 
 helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
-  --namespace kube-system \
-  --version "$LBC_CHART_VERSION" \
+  -n kube-system \
   --set clusterName="$CLUSTER" \
   --set region="$REGION" \
   --set vpcId="$VPC_ID" \
   --set serviceAccount.create=true \
   --set serviceAccount.name=aws-load-balancer-controller \
-  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$ROLE_ARN" \
-  --wait --timeout 5m
+  --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=$ROLE_ARN"
 
 kubectl -n kube-system rollout status deployment/aws-load-balancer-controller
 echo "==> Done"
