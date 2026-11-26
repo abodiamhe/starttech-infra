@@ -163,7 +163,7 @@ resource "aws_iam_role" "github_infra" {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           # Only the main branch of the infra repo can assume this role
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_owner}/starttech-infra:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_owner}@114923763/starttech-infra@1463417794:ref:refs/heads/main"
         }
       }
     }]
