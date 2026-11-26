@@ -25,3 +25,11 @@ output "cloudfront_distribution_id" {
 output "cloudfront_domain_name" {
   value = module.cdn.domain_name
 }
+
+# --------------------------------
+output "grader_user_name" {
+  value = aws_iam_user.grader.name
+}
+output "aws_account_id" {
+  value = data.aws_caller_identity.current.account_id
+}

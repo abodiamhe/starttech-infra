@@ -41,6 +41,8 @@ provider "aws" {
   # NOTE: use tags to identify all resources belonging to a project or all resources managed by Terraform
 }
 
+data "aws_caller_identity" "current" {}
+
 module "networking" {
   source = "./modules/networking"
 
@@ -86,4 +88,56 @@ module "cdn" {
 
   # Ensures the public access block exists before the bucket policy is attached
   depends_on = [module.storage]
+}
+
+# ---------- Grader user (read-only, least privilege) ----------
+resource "aws_iam_user" "grader" {
+  name = "start-tech-grader"
+  tags = { Purpose = "assessment-grading" }
+}
+
+resource "aws_iam_user_policy" "grader" {
+  name = "GraderReadOnly"
+  user = aws_iam_user.grader.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "GraderReadOnlyS3"
+        Effect = "Allow"
+        Action = [
+          "s3:ListAllMyBuckets",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:ListBucket"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "GraderReadOnlyCloudFront"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:ListDistributions",
+          "cloudfront:GetDistributionConfig"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "GraderReadOnlyEKS"
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListNodegroups",
+          "eks:DescribeNodegroup"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "GraderReadOnlyElastiCache"
+        Effect   = "Allow"
+        Action   = ["elasticache:DescribeCacheClusters"]
+        Resource = "*"
+      }
+    ]
+  })
 }
