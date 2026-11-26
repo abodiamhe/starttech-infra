@@ -141,3 +141,38 @@ resource "aws_iam_user_policy" "grader" {
     ]
   })
 }
+
+# ---------- GitHub Actions OIDC trust ----------
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+# ---------- Role assumed by the infrastructure pipeline ----------
+resource "aws_iam_role" "github_infra" {
+  name = "starttech-github-infra-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          # Only the main branch of the infra repo can assume this role
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_owner}/starttech-infra:ref:refs/heads/main"
+        }
+      }
+    }]
+  })
+}
+
+# Terraform creates IAM roles, EKS, VPC, CloudFront and more, so this role is
+# effectively admin. The tight trust policy above is what limits the risk.
+resource "aws_iam_role_policy_attachment" "github_infra_admin" {
+  role       = aws_iam_role.github_infra.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}

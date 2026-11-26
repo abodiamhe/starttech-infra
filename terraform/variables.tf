@@ -44,3 +44,8 @@ variable "alb_dns_name" {
   type        = string
   default     = ""
 }
+
+variable "github_owner" {
+  description = "GitHub username or organisation that owns the starttech-infra repo (case-sensitive)"
+  type        = string
+}

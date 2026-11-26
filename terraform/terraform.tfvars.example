@@ -11,3 +11,6 @@ alb_dns_name            = ""
 
 # Set once the GitHub Actions OIDC role exists (Step 6)
 github_actions_role_arn = ""
+
+# GitHub username or org that owns the repos (case-sensitive, must match exactly)
+github_owner = "your-github-username"

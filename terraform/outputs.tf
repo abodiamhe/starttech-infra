@@ -33,3 +33,7 @@ output "grader_user_name" {
 output "aws_account_id" {
   value = data.aws_caller_identity.current.account_id
 }
+
+output "github_infra_role_arn" {
+  value = aws_iam_role.github_infra.arn
+}
