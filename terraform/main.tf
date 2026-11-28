@@ -58,11 +58,11 @@ module "networking" {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name            = var.cluster_name
-  kubernetes_version      = var.kubernetes_version
-  vpc_id                  = module.networking.vpc_id
-  private_subnet_ids      = module.networking.private_subnet_ids
-  public_subnet_ids       = module.networking.public_subnet_ids
+  cluster_name       = var.cluster_name
+  kubernetes_version = var.kubernetes_version
+  vpc_id             = module.networking.vpc_id
+  private_subnet_ids = module.networking.private_subnet_ids
+  public_subnet_ids  = module.networking.public_subnet_ids
   # github_actions_role_arn = var.github_actions_role_arn
   github_actions_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/starttech-github-app-role"
 }
