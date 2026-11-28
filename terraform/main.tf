@@ -176,3 +176,74 @@ resource "aws_iam_role_policy_attachment" "github_infra_admin" {
   role       = aws_iam_role.github_infra.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
+
+# ---------- Role assumed by the application pipelines ----------
+resource "aws_iam_role" "github_app" {
+  name = "starttech-github-app-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_owner}/starttech-application:ref:refs/heads/main"
+        }
+      }
+    }]
+  })
+}
+
+# Least privilege: push images, sync the frontend bucket, invalidate CloudFront, describe the cluster
+resource "aws_iam_role_policy" "github_app" {
+  name = "app-deploy"
+  role = aws_iam_role.github_app.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "EcrLogin"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "EcrPush"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"
+        ]
+        Resource = "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/starttech-backend-api"
+      },
+      {
+        Sid      = "S3List"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = module.storage.bucket_arn
+      },
+      {
+        Sid      = "S3Objects"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${module.storage.bucket_arn}/*"
+      },
+      {
+        Sid      = "CloudFrontInvalidate"
+        Effect   = "Allow"
+        Action   = ["cloudfront:CreateInvalidation"]
+        Resource = module.cdn.distribution_arn
+      },
+      {
+        Sid      = "EksDescribe"
+        Effect   = "Allow"
+        Action   = ["eks:DescribeCluster"]
+        Resource = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.cluster_name}"
+      }
+    ]
+  })
+}
